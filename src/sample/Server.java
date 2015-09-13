@@ -8,9 +8,10 @@ import java.rmi.RemoteException;
 
 public interface Server extends Remote {
     char[][] GetMapFromSever() throws RemoteException;
-    String Hello() throws  RemoteException;
-    String upDate() throws RemoteException;
+    Integer regestryToServer(Player player) throws RemoteException;
+    char[][] upDate() throws RemoteException;
+    char[][] move(int id, int xO,int yO,int xN,int yN) throws RemoteException;
     String backUp() throws RemoteException;
-    String heartBeat() throws RemoteException;
+    String serverHeartBeat() throws RemoteException;
     //String GetTheBackServer() throws RemoteException;
 }

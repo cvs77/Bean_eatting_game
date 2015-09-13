@@ -5,8 +5,13 @@ package sample;
  */
 import java.rmi.RemoteException;
 import java.rmi.Remote;
+import java.util.HashMap;
+
 public interface Player extends Remote{
-    String promoteToBackUpServer() throws RemoteException;
-    String gameOn() throws  RemoteException;
-    String hearBeat() throws RemoteException;
+
+    String setBackUpServer() throws RemoteException;
+    String promoteToBackupServer() throws  RemoteException;
+    void  gameOn() throws  RemoteException;
+    void setTreasures() throws RemoteException;
+    String playerHearBeat() throws RemoteException;
 }

@@ -1,6 +1,7 @@
 package sample;
 
 import javafx.application.Application;
+import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
 import javafx.geometry.Insets;
@@ -11,6 +12,8 @@ import javafx.scene.Scene;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.control.*;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.ColumnConstraintsBuilder;
 import javafx.scene.layout.GridPane;
@@ -19,6 +22,7 @@ import javafx.scene.paint.Color;
 import javafx.scene.shape.ArcType;
 import javafx.stage.Stage;
 
+import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
@@ -30,20 +34,32 @@ public class Main extends Application {
     int treasureN;
     Map map;
     GridPane root;
-    Canvas Treasures;
-    Canvas Players;
+    Canvas Treasures=null;
+    Canvas Players=null;
     Canvas MapLandScape;
     GridPane sideBar;
     final ToggleGroup group = new ToggleGroup();
     RadioButton server;
     RadioButton client;
-    Label label1,label2;
+    Label label1,label2,labelCount,labelCount2;
     TextField textField1, textField2;
     Button startButton;
-    GameServer gameServer;
-    GamePlayer gameplayer;
-    Server SeverStub=null;
+    Button gameOnButtonTest;
+    GameNode gameServer;
+    Player gamePlayer;
+    Server ServerStub=null;
     Registry registry = null;
+    EventHandler<KeyEvent> keyEventHandler;
+    GameOnDrawCallBack callback=new GameOnDrawCallBack() {
+        @Override
+        public void gameOndrawTP() {
+            Platform.runLater(() -> {
+                drawThePlayers();
+                drawTheTreasure();
+            });
+
+        }
+    };
 
     @Override
     public void start(Stage primaryStage) {
@@ -54,55 +70,130 @@ public class Main extends Application {
         root.setPadding(new Insets(10, 10, 10, 10));
         root.setVgap(5);
         root.setHgap(5);
+
+
         //Draw the Map
-
-        //intializeAndDrawMap();
-        //Draw the Treasures
-
-
-        //Draw the Players
-        //drawThePlayers();
         drawSideBar();
+
+        keyEventHandler =
+                new EventHandler<KeyEvent>() {
+                    public void handle(final KeyEvent keyEvent) {
+                        if (keyEvent.getCode() == KeyCode.UP) {
+                            try {
+                                map.moveUp();
+                                labelCount2.setText(new Integer(map.TreasureCount).toString());
+                            } catch (RemoteException e) {
+                                e.printStackTrace();
+                            }
+                            drawThePlayers();
+                            drawTheTreasure();
+                            keyEvent.consume();
+                        }
+                        if(keyEvent.getCode() == KeyCode.DOWN){
+                            try {
+                                map.moveDown();
+                                labelCount2.setText(new Integer(map.TreasureCount).toString());
+                            } catch (RemoteException e) {
+                                e.printStackTrace();
+                            }
+                            drawThePlayers();
+                            drawTheTreasure();
+                            keyEvent.consume();
+                        }
+                        if(keyEvent.getCode() == KeyCode.LEFT){
+                            try {
+                                map.moveLeft();
+                                labelCount2.setText(new Integer(map.TreasureCount).toString());
+                            } catch (RemoteException e) {
+                                e.printStackTrace();
+                            }
+                            drawThePlayers();
+                            drawTheTreasure();
+                            keyEvent.consume();
+                        }
+                        if(keyEvent.getCode() == KeyCode.RIGHT){
+                            try {
+                                map.moveRight();
+                                labelCount2.setText(new Integer(map.TreasureCount).toString());
+                            } catch (RemoteException e) {
+                                e.printStackTrace();
+                            }
+                            drawThePlayers();
+                            drawTheTreasure();
+                            keyEvent.consume();
+                        }
+                    }
+                };
+
+        root.setOnKeyPressed(keyEventHandler);
+
         startButton.setOnAction(new EventHandler<ActionEvent>() {
-            @Override public void handle(ActionEvent e) {
+            @Override
+            public void handle(ActionEvent e) {
                 //if server state
-                if(server.isSelected()) {
-                    serverStateInitialize();
+                if (server.isSelected()) {
+                    try {
+                        serverStateInitialize();
+                    } catch (RemoteException e1) {
+                        e1.printStackTrace();
+                    }
                     primaryStage.setWidth(primaryStage.getWidth() + mapSize * gridSize);
                     primaryStage.setHeight(mapSize * gridSize + 40);
-                    gameServer.initializeServer(map.map, map.data);
+
                     intializeAndDrawMap();
                 }
-                if(client.isSelected()){
+                if (client.isSelected()) {
                     clientStateInitialize();
                     primaryStage.setWidth(primaryStage.getWidth() + mapSize * gridSize);
                     primaryStage.setHeight(mapSize * gridSize + 40);
                     intializeAndDrawMap();
                 }
-                //if client state
-            }});
+
+            }
+        });
+        gameOnButtonTest.setOnAction(new EventHandler<ActionEvent>() {
+            @Override
+            public void handle(ActionEvent event) {
+                for(Integer key:gameServer.playerList.keySet()){
+                    try {
+                        //System.out.print(gameServer.GlobalData.toString());
+                        gameServer.playerList.get(key).gameOn();
+                    } catch (RemoteException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+        });
 
         primaryStage.setScene(new Scene(root));
         primaryStage.show();
     }
 
 
-    private void  serverStateInitialize(){
+    private void  serverStateInitialize() throws RemoteException {
         mapSize=Integer.parseInt(textField1.getText());
         treasureN=Integer.parseInt(textField2.getText());
         map=new Map(mapSize,treasureN);
         map.generateMap();
         try {
-            gameServer=new GameServer(mapSize);
-            SeverStub=(Server) UnicastRemoteObject.exportObject(gameServer, 0);
+            gameServer=new GameNode(mapSize,true);
+            map.setGameServer(gameServer);
+            gameServer.initializeServer(map.map, map.data);
+            gameServer.setMap(map);
+            gameServer.setGameOnDrawCallBack(callback);
+            gameServer.setMainServerStub(gameServer);
+            //ServerStub=(Server) UnicastRemoteObject.exportObject(gameServer, 0);
             registry= LocateRegistry.createRegistry(1099);
-            registry = LocateRegistry.getRegistry(null,1099);
-            registry.bind("Server", SeverStub);
+            registry = LocateRegistry.getRegistry(null, 1099);
+            Player tmp=gameServer;
+            int id=gameServer.regestryToServer(tmp);
+            map.playerId=id;
+            registry.bind("Server", gameServer);
             System.err.println("Server ready");
         } catch (Exception e) {
             try{
                 registry.unbind("Server");
-                registry.bind("Server",SeverStub);
+                registry.bind("Server",gameServer);
                 System.err.println("Server ready");
             }catch(Exception ee){
                 System.err.println("Server exception: " + ee.toString());
@@ -111,15 +202,25 @@ public class Main extends Application {
         }
 
 
+
     }
     private void clientStateInitialize(){
         try {
             Registry registry = LocateRegistry.getRegistry(null, 1099);
-            SeverStub = (Server) registry.lookup("Server");
-            char[][] tm=SeverStub.GetMapFromSever();
-            map=new Map(tm.length);
-            map.map=tm;
-            mapSize=tm.length;
+            ServerStub = (Server) registry.lookup("Server");
+
+            gameServer=new GameNode(false,false);
+            gameServer.setMainServerStub(ServerStub);
+            gameServer.setGameOnDrawCallBack(callback);
+            char[][] mapR=ServerStub.GetMapFromSever();
+            Integer id=ServerStub.regestryToServer(gameServer);
+            map=new Map(mapR.length);
+            map.setGameServer(ServerStub);
+            gameServer.setMap(map);
+            map.map=mapR;
+            mapSize=mapR.length;
+            map.playerId=id;
+
 
         } catch (Exception e) {
             System.err.println("Client exception: " + e.toString());
@@ -128,14 +229,34 @@ public class Main extends Application {
 
     }
     private void drawThePlayers() {
+        if(Players!=null) {
+            root.getChildren().remove(Players);
+        }
         Players = new Canvas(mapSize*gridSize, mapSize*gridSize);
         GraphicsContext gcP = Players.getGraphicsContext2D();
-        drawOtherPlayers(gcP);
+        gcP.setFill(Color.BLUE);
+        for(int i=0;i<mapSize;i++){
+            for(int j=0;j<mapSize;j++){
+                if(map.map[i][j]>10){
+                    gcP.fillOval(i * gridSize + gridSize / 8, j * gridSize + gridSize / 8, gridSize*3/4, gridSize*3/4);
+                    if(map.map[i][j]==(char)(map.playerId+10)){
+                        map.data.players.put(new Integer(map.playerId), map.data.new Coord(i,j));
+                        gcP.setFill(Color.RED);
+                        gcP.fillOval(i * gridSize, j * gridSize, gridSize, gridSize);
+                        gcP.setFill(Color.BLUE);
+                    }
+                }
+            }
+        }
         GridPane.setConstraints(Players, 0, 0);
+
         root.getChildren().add(Players);
 
     }
     private void drawTheTreasure(){
+        if(Treasures!=null){
+            root.getChildren().remove(Treasures);
+        }
         Treasures = new Canvas(mapSize*gridSize, mapSize*gridSize);
         GraphicsContext gcT = Treasures.getGraphicsContext2D();
         drawTreasure(gcT);
@@ -183,9 +304,21 @@ public class Main extends Application {
         GridPane.setConstraints(textField2, 1, 7);
         sideBar.getChildren().add(textField2);
 
+
         startButton = new Button("Start");
         GridPane.setConstraints(startButton, 0, 10);
         sideBar.getChildren().add(startButton);
+
+        gameOnButtonTest = new Button("GameOn");
+        GridPane.setConstraints(gameOnButtonTest, 1, 10);
+        sideBar.getChildren().add(gameOnButtonTest);
+
+        labelCount = new Label("Point Count");
+        labelCount2= new Label("0");
+        GridPane.setConstraints(labelCount, 0, 14);
+        sideBar.getChildren().add(labelCount);
+        GridPane.setConstraints(labelCount2, 1, 14);
+        sideBar.getChildren().add(labelCount2);
 
 
         GridPane.setConstraints(sideBar, 1, 0);
@@ -198,7 +331,6 @@ public class Main extends Application {
             for (int j = 0; j < mapSize; j++) {
                 if (map.map[i][j] == 1) {
                     gc.fillRoundRect(i * gridSize, j * gridSize, 30, 30, 10, 10);
-                    //gc.clearRect();
                 }
             }
         }
@@ -206,14 +338,13 @@ public class Main extends Application {
     private void drawTreasure(GraphicsContext gc){
         gc.setStroke(Color.YELLOW);
         gc.setLineWidth(8);
-        for(Integer key:map.data.treasures.keySet()){
-            gc.strokeOval(map.data.treasures.get(key).x*gridSize+gridSize/4, map.data.treasures.get(key).y*gridSize+gridSize/4, gridSize/2, gridSize/2);
+        for(int i=0;i< mapSize;i++){
+            for(int  j=0;j<mapSize;j++){
+                if(map.map[i][j]==2){
+                    gc.strokeOval(i*gridSize+gridSize/4, j*gridSize+gridSize/4, gridSize/2, gridSize/2);
+                }
+            }
         }
-
-    }
-    private void drawOtherPlayers(GraphicsContext gc){
-
-
     }
 
 
