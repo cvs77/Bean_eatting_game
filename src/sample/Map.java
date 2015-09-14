@@ -1,6 +1,6 @@
 package sample;
 
-  import com.sun.security.ntlm.*;
+import com.sun.security.ntlm.*;
 import com.sun.xml.internal.xsom.impl.scd.Iterators;
 import sample.Data;
 
@@ -25,13 +25,13 @@ public class Map{
     Map(int n,int m) throws RemoteException {
         this.n=n;
         this.m=m;
-        map =new char[n][n];
+        map =new char[n+1][n];
         playerId=0;
         data = new Data();
     }
     Map(int n) throws RemoteException {
         this.n=n;
-        map =new char[n][n];
+        map =new char[n+1][n];
         data = new Data();
     }
     void setGameServer(Server s){
@@ -63,7 +63,7 @@ public class Map{
         }
     }
 
-    public void moveUp()  {
+    public void moveUp() throws RemoteException {
         int x=data.players.get(playerId).x;
         int y= data.players.get(playerId).y;
         //Get the data from the server
@@ -73,12 +73,14 @@ public class Map{
             try {
                 gameServer=backUpServer;
                 map=gameServer.move(playerId,x,y,x,y-1);
+                throw e;
             } catch (RemoteException e1) {
                 e1.printStackTrace();
+                throw e1;
             }
         }
     }
-    public void moveDown(){
+    public void moveDown() throws RemoteException {
         int x=data.players.get(playerId).x;
         int y= data.players.get(playerId).y;
         //Get the data from the server
@@ -88,12 +90,14 @@ public class Map{
             try {
                 gameServer=backUpServer;
                 map=gameServer.move(playerId,x,y,x,y+1);
+                throw  e;
             } catch (RemoteException e1) {
                 e1.printStackTrace();
+                throw e1;
             }
         }
     }
-    public void moveLeft(){
+    public void moveLeft() throws RemoteException {
         int x=data.players.get(playerId).x;
         int y= data.players.get(playerId).y;
         //Get the data from the server
@@ -103,12 +107,14 @@ public class Map{
             try {
                 gameServer=backUpServer;
                 map=gameServer.move(playerId,x,y,x-1,y);
+                throw e;
             } catch (RemoteException e1) {
                 e1.printStackTrace();
+                throw  e1;
             }
         }
     }
-    public void moveRight(){
+    public void moveRight() throws RemoteException {
         int x=data.players.get(playerId).x;
         int y= data.players.get(playerId).y;
         //Get the data from the server
@@ -118,8 +124,11 @@ public class Map{
             try {
                 gameServer=backUpServer;
                 map=gameServer.move(playerId,x,y,x+1,y);
+                throw e;
             } catch (RemoteException e1) {
                 e1.printStackTrace();
+                throw  e1;
+
             }
         }
     }

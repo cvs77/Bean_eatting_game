@@ -41,7 +41,7 @@ public class Main extends Application {
     final ToggleGroup group = new ToggleGroup();
     RadioButton server;
     RadioButton client;
-    Label label1,label2,labelCount,labelCount2;
+    Label label1,label2,labelCount,labelCount2,serverflag;
     TextField textField1, textField2;
     Button startButton;
     Button gameOnButtonTest;
@@ -58,6 +58,7 @@ public class Main extends Application {
             Platform.runLater(() -> {
                 drawThePlayers();
                 drawTheTreasure();
+                setServerFlagLabel();
             });
 
         }
@@ -81,39 +82,66 @@ public class Main extends Application {
                 new EventHandler<KeyEvent>() {
                     public void handle(final KeyEvent keyEvent) {
                         if (keyEvent.getCode() == KeyCode.UP) {
-
+                            try {
                                 map.moveUp();
-                                labelCount2.setText(new Integer(map.TreasureCount).toString());
+                            } catch (RemoteException e) {
+                                e.printStackTrace();
+                            }
+                            finally {
+                                labelCount2.setText(new Integer(map.map[map.map.length - 1][map.playerId]).toString());
+                                drawThePlayers();
+                                drawTheTreasure();
+                                keyEvent.consume();
+                                setServerFlagLabel();
+                            }
 
-                            drawThePlayers();
-                            drawTheTreasure();
-                            keyEvent.consume();
                         }
                         if(keyEvent.getCode() == KeyCode.DOWN){
+                            try {
                                 map.moveDown();
-                                labelCount2.setText(new Integer(map.TreasureCount).toString());
+                            } catch (RemoteException e) {
+                                e.printStackTrace();
 
-                            drawThePlayers();
-                            drawTheTreasure();
-                            keyEvent.consume();
+                            }
+                            finally {
+                                labelCount2.setText(new Integer(map.map[map.map.length-1][map.playerId]).toString());
+                                drawThePlayers();
+                                drawTheTreasure();
+                                keyEvent.consume();
+                                setServerFlagLabel();
+                            }
+
                         }
                         if(keyEvent.getCode() == KeyCode.LEFT){
-
+                            try {
                                 map.moveLeft();
-                                labelCount2.setText(new Integer(map.TreasureCount).toString());
+                            } catch (RemoteException e) {
+                                e.printStackTrace();
+                            }
+                            finally {
+                                labelCount2.setText(new Integer(map.map[map.map.length-1][map.playerId]).toString());
 
-                            drawThePlayers();
-                            drawTheTreasure();
-                            keyEvent.consume();
+                                drawThePlayers();
+                                drawTheTreasure();
+                                keyEvent.consume();
+                                setServerFlagLabel();
+                            }
+
                         }
                         if(keyEvent.getCode() == KeyCode.RIGHT){
-
+                            try {
                                 map.moveRight();
-                                labelCount2.setText(new Integer(map.TreasureCount).toString());
+                            } catch (RemoteException e) {
+                                e.printStackTrace();
+                            }
+                            finally {
+                                labelCount2.setText(new Integer(map.map[map.map.length-1][map.playerId]).toString());
+                                drawThePlayers();
+                                drawTheTreasure();
+                                keyEvent.consume();
+                                setServerFlagLabel();
+                            }
 
-                            drawThePlayers();
-                            drawTheTreasure();
-                            keyEvent.consume();
                         }
                     }
                 };
@@ -147,16 +175,16 @@ public class Main extends Application {
         gameOnButtonTest.setOnAction(new EventHandler<ActionEvent>() {
             @Override
             public void handle(ActionEvent event) {
-                for(Integer key:gameServer.playerList.keySet()){
+                for (Integer key : gameServer.playerList.keySet()) {
                     try {
                         //System.out.print(gameServer.GlobalData.toString());
                         gameServer.playerList.get(key).gameOn();
-                        if(key==2){
+                        if (key == 2) {
                             gameServer.playerList.get(2).promoteToBackupServer(gameServer.playerList);
-                            gameServer.backUpServerFlag=true;
-                            BackUpServerStub= (Server) gameServer.playerList.get(2);
+                            gameServer.HaveBackUpServerFlag = true;
+                            BackUpServerStub = (Server) gameServer.playerList.get(2);
                             BackUpServerStub.backUp(gameServer.GlobalMap);
-                            for(Integer key2:gameServer.playerList.keySet()){
+                            for (Integer key2 : gameServer.playerList.keySet()) {
                                 gameServer.playerList.get(key2).setBackUpServer((Server) gameServer.playerList.get(2));
                             }
                         }
@@ -166,52 +194,64 @@ public class Main extends Application {
                 }
             }
         });
-
         primaryStage.setScene(new Scene(root));
         primaryStage.show();
     }
 
 
     private void  serverStateInitialize() throws RemoteException {
-        mapSize=Integer.parseInt(textField1.getText());
-        treasureN=Integer.parseInt(textField2.getText());
-        map=new Map(mapSize,treasureN);
+        mapSize = Integer.parseInt(textField1.getText());
+        treasureN = Integer.parseInt(textField2.getText());
+        map = new Map(mapSize, treasureN);
         map.generateMap();
         try {
-            gameServer=new GameNode(mapSize,true);
+            gameServer = new GameNode(mapSize, true);
             map.setGameServer(gameServer);
             gameServer.initializeServer(map.map, map.data);
             gameServer.setMap(map);
+            gameServer.serverFlag=true;
             gameServer.setGameOnDrawCallBack(callback);
             gameServer.setMainServerStub(gameServer);
             //ServerStub=(Server) UnicastRemoteObject.exportObject(gameServer, 0);
-            registry= LocateRegistry.createRegistry(1099);
+            registry = LocateRegistry.createRegistry(1099);
             registry = LocateRegistry.getRegistry(null, 1099);
-            Player tmp=gameServer;
-            int id=gameServer.regestryToServer(tmp);
-            map.playerId=id;
+            Player tmp = gameServer;
+            int id = gameServer.regestryToServer(tmp);
+            map.playerId = id;
             registry.bind("Server", gameServer);
             System.err.println("Server ready");
+            setServerFlagLabel();
         } catch (Exception e) {
-            try{
+            try {
                 registry.unbind("Server");
-                registry.bind("Server",gameServer);
+                registry.bind("Server", gameServer);
                 System.err.println("Server ready");
-            }catch(Exception ee){
+            } catch (Exception ee) {
                 System.err.println("Server exception: " + ee.toString());
                 ee.printStackTrace();
             }
         }
-
-
-
     }
+    private void setServerFlagLabel(){
+        if(gameServer.backUpServerFlag==true){
+            serverflag.setText("Back Up Server");
+        }
+        else if(gameServer.serverFlag==true){
+            serverflag.setText("Main Server");
+        }
+        else{
+            serverflag.setText("Player");
+        }
+    }
+
+
     private void clientStateInitialize(){
         try {
             Registry registry = LocateRegistry.getRegistry(null, 1099);
             ServerStub = (Server) registry.lookup("Server");
 
             gameServer=new GameNode(false,false);
+            setServerFlagLabel();
             gameServer.setMainServerStub(ServerStub);
             gameServer.setGameOnDrawCallBack(callback);
             char[][] mapR=ServerStub.GetMapFromSever();
@@ -220,7 +260,7 @@ public class Main extends Application {
             map.setGameServer(ServerStub);
             gameServer.setMap(map);
             map.map=mapR;
-            mapSize=mapR.length;
+            mapSize=mapR[0].length;
             map.playerId=id;
 
 
@@ -251,7 +291,6 @@ public class Main extends Application {
             }
         }
         GridPane.setConstraints(Players, 0, 0);
-
         root.getChildren().add(Players);
 
     }
@@ -322,6 +361,9 @@ public class Main extends Application {
         GridPane.setConstraints(labelCount2, 1, 14);
         sideBar.getChildren().add(labelCount2);
 
+        serverflag= new Label("");
+        GridPane.setConstraints(serverflag, 0, 16);
+        sideBar.getChildren().add(serverflag);
 
         GridPane.setConstraints(sideBar, 1, 0);
         root.getChildren().add(sideBar);

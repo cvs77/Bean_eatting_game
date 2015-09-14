@@ -18,6 +18,7 @@ public class GameNode  extends  UnicastRemoteObject implements Server, Player {
     Server MainServerStub=null;
     Server BackupServerStub=null;
     boolean backUpServerFlag=false;
+    boolean HaveBackUpServerFlag=false;
     static int playerCount=0;
     GameOnDrawCallBack callback;
     Map map;
@@ -26,7 +27,7 @@ public class GameNode  extends  UnicastRemoteObject implements Server, Player {
     GameNode(int mapSize, boolean server) throws RemoteException {
         super();
         serverFlag=server;
-        GlobalMap=new char[mapSize][mapSize];
+        GlobalMap=new char[mapSize+1][mapSize];
         GlobalData =new Data();
         playerList = new HashMap<Integer,Player>();
     }
@@ -50,8 +51,8 @@ public class GameNode  extends  UnicastRemoteObject implements Server, Player {
 
 
     public void initializeServer(char[][] map, Data data){
-        for(int i=0;i<map.length;i++){
-            for(int j=0;j<map.length;j++){
+        for(int i=0;i<map[0].length;i++){
+            for(int j=0;j<map[0].length;j++){
                 GlobalMap[i][j]=map[i][j];
             }
         }
@@ -71,10 +72,8 @@ public class GameNode  extends  UnicastRemoteObject implements Server, Player {
     }
     @Override
     public char[][] GetMapFromSever() throws RemoteException {
-
         return  GlobalMap;
     }
-
 
     @Override
     public Integer  regestryToServer(Player player) throws RemoteException {
@@ -84,34 +83,33 @@ public class GameNode  extends  UnicastRemoteObject implements Server, Player {
             AddPlayer(playerCount);
             return new Integer(playerCount);
         }
-
     }
-
 
     @Override
     public char[][] move(int id, int xO, int yO,int xN,int yN) {
 
         synchronized (this) {
+            serverFlag=true;
+            backUpServerFlag=false;
             //Check the place available
             if (GlobalMap[xN][yN] == 2) {
                 GlobalMap[xN][yN]=(char)(id+10);
-                try {
-                    playerList.get(id).setTreasures();
-                } catch (RemoteException e) {
-                    e.printStackTrace();
-                }
+                //playerList.get(id).setTreasures();
                 GlobalMap[xO][yO]=0;
+                GlobalMap[GlobalMap.length-1][id]+=1;
             }
-            if(GlobalMap[xN][yN]==0){
+            else if(GlobalMap[xN][yN]==0){
                 GlobalMap[xN][yN]=(char)(id+10);
                 GlobalMap[xO][yO]=0;
             }
-            if(backUpServerFlag!=true){
+            if(HaveBackUpServerFlag!=true){
                 BackupServerStub=pickBackUpServer();
             }
             else{
                 try {
-                    BackupServerStub.backUp(GlobalMap);
+                    if(BackupServerStub!=null) {
+                        BackupServerStub.backUp(GlobalMap);
+                    }
                 } catch (RemoteException e) {
                     BackupServerStub=pickBackUpServer();
                     try {
@@ -130,14 +128,18 @@ public class GameNode  extends  UnicastRemoteObject implements Server, Player {
 
             for(Integer key:playerList.keySet()){
                 try {
-                    if(playerList.get(key).promoteToBackupServer(playerList)){
-                        BackUpServer= (Server) playerList.get(key);
-
+                    if(key!=map.playerId){
+                        if(playerList.get(key).promoteToBackupServer(playerList)){
+                            BackUpServer= (Server) playerList.get(key);
+                            break;
+                        }
                     }
+
                 } catch (RemoteException e) {
-                    playerList.remove(key);
+                    //playerList.remove(key);
                     e.printStackTrace();
                 }
+
             }
         for(Integer key:playerList.keySet()){
             try {
@@ -146,6 +148,14 @@ public class GameNode  extends  UnicastRemoteObject implements Server, Player {
                 e.printStackTrace();
             }
         }
+        try {
+            if(BackUpServer!=null) {
+                BackUpServer.backUp(GlobalMap);
+            }
+        } catch (RemoteException e) {
+            e.printStackTrace();
+        }
+        HaveBackUpServerFlag=true;
         return  BackUpServer;
 
 
@@ -174,10 +184,12 @@ public class GameNode  extends  UnicastRemoteObject implements Server, Player {
 
     @Override
     public boolean promoteToBackupServer(HashMap<Integer,Player> map) throws RemoteException {
+        backUpServerFlag=true;
         playerList=new HashMap<Integer,Player>();
         for(Integer key:map.keySet()){
             playerList.put(key,map.get(key));
         }
+        callback.gameOndrawTP();
         return true;
     }
 
@@ -186,11 +198,6 @@ public class GameNode  extends  UnicastRemoteObject implements Server, Player {
         map.map=MainServerStub.upDate();
         callback.gameOndrawTP();
 
-    }
-
-    @Override
-    public void setTreasures() throws RemoteException {
-        map.TreasureCount++;
     }
 
     @Override
