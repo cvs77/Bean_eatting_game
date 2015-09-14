@@ -46,8 +46,10 @@ public class Main extends Application {
     Button startButton;
     Button gameOnButtonTest;
     GameNode gameServer;
+
     Player gamePlayer;
     Server ServerStub=null;
+    Server BackUpServerStub=null;
     Registry registry = null;
     EventHandler<KeyEvent> keyEventHandler;
     GameOnDrawCallBack callback=new GameOnDrawCallBack() {
@@ -79,45 +81,36 @@ public class Main extends Application {
                 new EventHandler<KeyEvent>() {
                     public void handle(final KeyEvent keyEvent) {
                         if (keyEvent.getCode() == KeyCode.UP) {
-                            try {
+
                                 map.moveUp();
                                 labelCount2.setText(new Integer(map.TreasureCount).toString());
-                            } catch (RemoteException e) {
-                                e.printStackTrace();
-                            }
+
                             drawThePlayers();
                             drawTheTreasure();
                             keyEvent.consume();
                         }
                         if(keyEvent.getCode() == KeyCode.DOWN){
-                            try {
                                 map.moveDown();
                                 labelCount2.setText(new Integer(map.TreasureCount).toString());
-                            } catch (RemoteException e) {
-                                e.printStackTrace();
-                            }
+
                             drawThePlayers();
                             drawTheTreasure();
                             keyEvent.consume();
                         }
                         if(keyEvent.getCode() == KeyCode.LEFT){
-                            try {
+
                                 map.moveLeft();
                                 labelCount2.setText(new Integer(map.TreasureCount).toString());
-                            } catch (RemoteException e) {
-                                e.printStackTrace();
-                            }
+
                             drawThePlayers();
                             drawTheTreasure();
                             keyEvent.consume();
                         }
                         if(keyEvent.getCode() == KeyCode.RIGHT){
-                            try {
+
                                 map.moveRight();
                                 labelCount2.setText(new Integer(map.TreasureCount).toString());
-                            } catch (RemoteException e) {
-                                e.printStackTrace();
-                            }
+
                             drawThePlayers();
                             drawTheTreasure();
                             keyEvent.consume();
@@ -158,6 +151,15 @@ public class Main extends Application {
                     try {
                         //System.out.print(gameServer.GlobalData.toString());
                         gameServer.playerList.get(key).gameOn();
+                        if(key==2){
+                            gameServer.playerList.get(2).promoteToBackupServer(gameServer.playerList);
+                            gameServer.backUpServerFlag=true;
+                            BackUpServerStub= (Server) gameServer.playerList.get(2);
+                            BackUpServerStub.backUp(gameServer.GlobalMap);
+                            for(Integer key2:gameServer.playerList.keySet()){
+                                gameServer.playerList.get(key2).setBackUpServer((Server) gameServer.playerList.get(2));
+                            }
+                        }
                     } catch (RemoteException e) {
                         e.printStackTrace();
                     }

@@ -9,9 +9,9 @@ import java.util.HashMap;
 
 public interface Player extends Remote{
 
-    String setBackUpServer() throws RemoteException;
-    String promoteToBackupServer() throws  RemoteException;
+    void setBackUpServer(Server s) throws RemoteException;
+    boolean promoteToBackupServer(HashMap<Integer,Player> map) throws  RemoteException;
     void  gameOn() throws  RemoteException;
     void setTreasures() throws RemoteException;
-    String playerHearBeat() throws RemoteException;
+    boolean playerHearBeat() throws RemoteException;
 }

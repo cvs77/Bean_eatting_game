@@ -87,33 +87,77 @@ public class GameNode  extends  UnicastRemoteObject implements Server, Player {
 
     }
 
-    @Override
-    public char[][] upDate() throws RemoteException {
-        return GlobalMap;
-    }
 
     @Override
-    public char[][] move(int id, int xO, int yO,int xN,int yN) throws RemoteException {
+    public char[][] move(int id, int xO, int yO,int xN,int yN) {
 
         synchronized (this) {
             //Check the place available
             if (GlobalMap[xN][yN] == 2) {
                 GlobalMap[xN][yN]=(char)(id+10);
-                playerList.get(id).setTreasures();
+                try {
+                    playerList.get(id).setTreasures();
+                } catch (RemoteException e) {
+                    e.printStackTrace();
+                }
                 GlobalMap[xO][yO]=0;
             }
             if(GlobalMap[xN][yN]==0){
                 GlobalMap[xN][yN]=(char)(id+10);
                 GlobalMap[xO][yO]=0;
             }
-
+            if(backUpServerFlag!=true){
+                BackupServerStub=pickBackUpServer();
+            }
+            else{
+                try {
+                    BackupServerStub.backUp(GlobalMap);
+                } catch (RemoteException e) {
+                    BackupServerStub=pickBackUpServer();
+                    try {
+                        BackupServerStub.backUp(GlobalMap);
+                    } catch (RemoteException e1) {
+                        e1.printStackTrace();
+                    }
+                    e.printStackTrace();
+                }
+            }
         }
+        return GlobalMap;
+    }
+    private Server pickBackUpServer(){
+        Server BackUpServer = null;
+
+            for(Integer key:playerList.keySet()){
+                try {
+                    if(playerList.get(key).promoteToBackupServer(playerList)){
+                        BackUpServer= (Server) playerList.get(key);
+
+                    }
+                } catch (RemoteException e) {
+                    playerList.remove(key);
+                    e.printStackTrace();
+                }
+            }
+        for(Integer key:playerList.keySet()){
+            try {
+                playerList.get(key).setBackUpServer(BackUpServer);
+            } catch (RemoteException e) {
+                e.printStackTrace();
+            }
+        }
+        return  BackUpServer;
+
+
+    }
+    @Override
+    public char[][] upDate() throws RemoteException {
         return GlobalMap;
     }
 
     @Override
-    public String backUp() throws RemoteException {
-        return null;
+    public void  backUp(char[][] map) throws RemoteException {
+        GlobalMap=map;
     }
 
     @Override
@@ -122,21 +166,24 @@ public class GameNode  extends  UnicastRemoteObject implements Server, Player {
     }
 
     @Override
-    public String setBackUpServer() throws RemoteException {
-        return null;
+    public void  setBackUpServer(Server s) throws RemoteException {
+        BackupServerStub=s;
+        map.backUpServer=s;
+
     }
 
     @Override
-    public String promoteToBackupServer() throws RemoteException {
-        return null;
+    public boolean promoteToBackupServer(HashMap<Integer,Player> map) throws RemoteException {
+        playerList=new HashMap<Integer,Player>();
+        for(Integer key:map.keySet()){
+            playerList.put(key,map.get(key));
+        }
+        return true;
     }
 
     @Override
     public void gameOn() throws RemoteException {
-
-
         map.map=MainServerStub.upDate();
-
         callback.gameOndrawTP();
 
     }
@@ -147,7 +194,8 @@ public class GameNode  extends  UnicastRemoteObject implements Server, Player {
     }
 
     @Override
-    public String playerHearBeat() throws RemoteException {
-        return null;
+    public boolean playerHearBeat() throws RemoteException {
+
+        return true;
     }
 }
