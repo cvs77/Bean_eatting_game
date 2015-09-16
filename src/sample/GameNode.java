@@ -5,6 +5,8 @@ import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.HashMap;
 import java.util.Random;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.function.IntToDoubleFunction;
 
 /**
@@ -16,6 +18,8 @@ public class GameNode  extends  UnicastRemoteObject implements Server, Player {
     HashMap<Integer,Player> playerList;
     boolean serverFlag=false;
     Server MainServerStub=null;
+    Timer pingMainTimer=null;
+    Timer pingBackUpTimer=null;
     Server BackupServerStub=null;
     boolean backUpServerFlag=false;
     boolean HaveBackUpServerFlag=false;
@@ -84,6 +88,55 @@ public class GameNode  extends  UnicastRemoteObject implements Server, Player {
             return new Integer(playerCount);
         }
     }
+    public void startPingBackUpServer(){
+
+        TimerTask task = new TimerTask() {
+            @Override
+            public void run() {
+                // task to run goes here
+                try {
+                    BackupServerStub.serverHeartBeat();
+
+                } catch (RemoteException e) {
+                    e.printStackTrace();
+                    pickBackUpServer();
+                    pingBackUpTimer.cancel();
+                }
+            }
+        };
+         pingBackUpTimer= new Timer();
+        long delay = 0;
+        long intevalPeriod = 1 * 1000;
+        // schedules the task to be run in an interval
+        pingBackUpTimer.scheduleAtFixedRate(task, delay,
+                intevalPeriod);
+
+    }
+    public void startPingMainServer(){
+        TimerTask task = new TimerTask() {
+            @Override
+            public void run() {
+                // task to run goes here
+                try {
+                    MainServerStub.serverHeartBeat();
+                } catch (RemoteException e) {
+                    e.printStackTrace();
+
+                    serverFlag=true;
+                    backUpServerFlag=false;
+                    pingMainTimer.cancel();
+                    pickBackUpServer();
+                }
+            }
+        };
+        pingMainTimer = new Timer();
+        long delay = 0;
+        long intevalPeriod = 1 * 1000;
+        // schedules the task to be run in an interval
+        pingMainTimer.scheduleAtFixedRate(task, delay,
+                intevalPeriod);
+    }
+
 
     @Override
     public char[][] move(int id, int xO, int yO,int xN,int yN) {
@@ -131,6 +184,7 @@ public class GameNode  extends  UnicastRemoteObject implements Server, Player {
                     if(key!=map.playerId){
                         if(playerList.get(key).promoteToBackupServer(playerList)){
                             BackUpServer= (Server) playerList.get(key);
+                            playerList.get(key).setMainServer(this);
                             break;
                         }
                     }
@@ -155,6 +209,7 @@ public class GameNode  extends  UnicastRemoteObject implements Server, Player {
         } catch (RemoteException e) {
             e.printStackTrace();
         }
+        startPingBackUpServer();
         HaveBackUpServerFlag=true;
         return  BackUpServer;
 
@@ -171,8 +226,8 @@ public class GameNode  extends  UnicastRemoteObject implements Server, Player {
     }
 
     @Override
-    public String serverHeartBeat() throws RemoteException {
-        return null;
+    public boolean serverHeartBeat() throws RemoteException {
+        return true;
     }
 
     @Override
@@ -183,12 +238,19 @@ public class GameNode  extends  UnicastRemoteObject implements Server, Player {
     }
 
     @Override
+    public void setMainServer(Server s) throws RemoteException {
+        map.gameServer=s;
+        MainServerStub=s;
+    }
+
+    @Override
     public boolean promoteToBackupServer(HashMap<Integer,Player> map) throws RemoteException {
         backUpServerFlag=true;
         playerList=new HashMap<Integer,Player>();
         for(Integer key:map.keySet()){
             playerList.put(key,map.get(key));
         }
+        startPingMainServer();
         callback.gameOndrawTP();
         return true;
     }

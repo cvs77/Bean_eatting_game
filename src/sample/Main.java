@@ -41,6 +41,7 @@ public class Main extends Application {
     final ToggleGroup group = new ToggleGroup();
     RadioButton server;
     RadioButton client;
+    boolean gameInitialized=false;
     Label label1,label2,labelCount,labelCount2,serverflag;
     TextField textField1, textField2;
     Button startButton;
@@ -152,24 +153,27 @@ public class Main extends Application {
             @Override
             public void handle(ActionEvent e) {
                 //if server state
-                if (server.isSelected()) {
-                    try {
-                        serverStateInitialize();
-                    } catch (RemoteException e1) {
-                        e1.printStackTrace();
+                if (gameInitialized == false) {
+                    if (server.isSelected()) {
+                        try {
+                            serverStateInitialize();
+                        } catch (RemoteException e1) {
+                            e1.printStackTrace();
+                        }
+                        primaryStage.setWidth(primaryStage.getWidth() + mapSize * gridSize);
+                        primaryStage.setHeight(mapSize * gridSize + 40);
+
+                        intializeAndDrawMap();
                     }
-                    primaryStage.setWidth(primaryStage.getWidth() + mapSize * gridSize);
-                    primaryStage.setHeight(mapSize * gridSize + 40);
+                    if (client.isSelected()) {
+                        clientStateInitialize();
+                        primaryStage.setWidth(primaryStage.getWidth() + mapSize * gridSize);
+                        primaryStage.setHeight(mapSize * gridSize + 40);
+                        intializeAndDrawMap();
+                    }
 
-                    intializeAndDrawMap();
                 }
-                if (client.isSelected()) {
-                    clientStateInitialize();
-                    primaryStage.setWidth(primaryStage.getWidth() + mapSize * gridSize);
-                    primaryStage.setHeight(mapSize * gridSize + 40);
-                    intializeAndDrawMap();
-                }
-
+                gameInitialized=true;
             }
         });
         gameOnButtonTest.setOnAction(new EventHandler<ActionEvent>() {
@@ -187,6 +191,7 @@ public class Main extends Application {
                             for (Integer key2 : gameServer.playerList.keySet()) {
                                 gameServer.playerList.get(key2).setBackUpServer((Server) gameServer.playerList.get(2));
                             }
+                            gameServer.startPingBackUpServer();
                         }
                     } catch (RemoteException e) {
                         e.printStackTrace();

@@ -12,6 +12,6 @@ public interface Server extends Remote {
     void backUp(char[][] map) throws RemoteException;
     char[][] move(int id, int xO,int yO,int xN,int yN) throws RemoteException;
     char[][]  upDate() throws RemoteException;
-    String serverHeartBeat() throws RemoteException;
+    boolean serverHeartBeat() throws RemoteException;
     //String GetTheBackServer() throws RemoteException;
 }
