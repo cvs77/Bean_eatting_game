@@ -49,6 +49,10 @@ public class GameNode  extends  UnicastRemoteObject implements Server, Player {
     public void setMainServerStub(Server s){
         MainServerStub =s;
     }
+    private void setMainServerToSelf(){
+        MainServerStub = this;
+        map.gameServer =this;
+    }
     public void setBackupServerStub(Server s){
         BackupServerStub =s;
     }
@@ -95,8 +99,9 @@ public class GameNode  extends  UnicastRemoteObject implements Server, Player {
             public void run() {
                 // task to run goes here
                 try {
-                    BackupServerStub.serverHeartBeat();
-
+                    if(BackupServerStub!=null) {
+                        BackupServerStub.serverHeartBeat();
+                    }
                 } catch (RemoteException e) {
                     e.printStackTrace();
                     pickBackUpServer();
@@ -118,12 +123,16 @@ public class GameNode  extends  UnicastRemoteObject implements Server, Player {
             public void run() {
                 // task to run goes here
                 try {
-                    MainServerStub.serverHeartBeat();
+                    if(MainServerStub!=null) {
+                        MainServerStub.serverHeartBeat();
+                    }
                 } catch (RemoteException e) {
                     e.printStackTrace();
-
+                    setMainServerToSelf();
                     serverFlag=true;
+                    callback.gameOndrawTP();
                     backUpServerFlag=false;
+                    sendMainServerInfo();
                     pingMainTimer.cancel();
                     pickBackUpServer();
                 }
@@ -135,6 +144,20 @@ public class GameNode  extends  UnicastRemoteObject implements Server, Player {
         // schedules the task to be run in an interval
         pingMainTimer.scheduleAtFixedRate(task, delay,
                 intevalPeriod);
+    }
+    public void sendMainServerInfo(){
+        for(Integer key:playerList.keySet()){
+            try {
+                if(key!=map.playerId){
+                    playerList.get(key).setMainServer(this);
+                }
+
+            } catch (RemoteException e) {
+                //playerList.remove(key);
+                e.printStackTrace();
+            }
+
+        }
     }
 
 
